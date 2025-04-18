@@ -20,29 +20,39 @@ def split_data(data, mode='standard'):
         raise ValueError('Invalid split mode.')
 
 
-
 def initialize_normal_weights(input_dim, output_dim):
+
     """
     Initialize weights and biases for a layer with normal distribution.
     """
+
     W = np.random.randn(output_dim, input_dim) * np.sqrt(2. / input_dim)
     B = np.zeros((output_dim, 1))
+    
     return W, B
 
 
 def initialize_uniform_weights(input_dim, output_dim):
+
     """
     Initialize weights and biases for a layer with uniform distribution.
     """
+
     W = np.random.uniform(-1, 1, (output_dim, input_dim))
     B = np.zeros((output_dim, 1))
+
     return W, B
 
 
 def initialize_zero_weights(input_dim, output_dim):
+
     """
     Initialize weights and biases for a layer with zero values.
     """
+
     W = np.zeros((output_dim, input_dim))
     B = np.zeros((output_dim, 1))
+
     return W, B
+
+

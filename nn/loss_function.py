@@ -3,6 +3,7 @@ import numpy as np
 
 
 class LossFunction:
+
     """
     Base class for all loss functions.
     - x: predicted output (g)
@@ -17,7 +18,6 @@ class LossFunction:
         self.keep_loss_history = True
         self.loss_history = []  # Loss history
 
-
     def __call__(self, x, y):
         """
         Call the loss function.
@@ -27,6 +27,7 @@ class LossFunction:
 
 
     def forward(self, x, y):
+
         """
         Forward pass of the loss function.
         """
@@ -42,6 +43,7 @@ class LossFunction:
         return self.loss
 
     def _loss(self, x, y):
+
         """
         Loss function.
         """
@@ -50,6 +52,7 @@ class LossFunction:
 
 
     def backward(self, x, y):
+
         """
         Backward pass of the loss function.
         """
@@ -57,6 +60,7 @@ class LossFunction:
         return self._loss_derivative(x, y)
 
     def _loss_derivative(self, x, y):
+        
         """
         Derivative of the loss function.
         """

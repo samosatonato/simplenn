@@ -28,6 +28,7 @@ import nn.parameter_optimizer as po
 
 
 class Module:
+
     """
     Base class for all modules.
     - Contains the next and prev pointers for the linked list of modules.
@@ -61,6 +62,7 @@ class Module:
 
 
 class Layer(Module):
+
     """
     Base class for all layers.
     """
@@ -78,6 +80,7 @@ class Layer(Module):
 
 
     def initialize(self):
+
         """
         Initialize the weights and biases for the layer.
         - This method is to be called after the layer is added to the model.
@@ -128,6 +131,7 @@ class Layer(Module):
 
 
 class Activation(Module):
+
     """
     Base class for all activation functions.
     """
@@ -152,6 +156,7 @@ class Activation(Module):
 
 
 class NN:
+
     """
     Base class for neural network skeleton.
     """
@@ -166,17 +171,14 @@ class NN:
 
         self.is_built = False  # Flag to check if the model is built
 
-
     def __call__(self, *args, **kwds):
         """
         Call the predict method of the model.
         """
         return self.predict(*args, **kwds)
 
-
     def __str__(self):
         return f'Neural Network with {len(self.modules)} modules.'
-
 
 
     def add(self, building_block):
@@ -198,6 +200,7 @@ class NN:
 
 
     def predict(self, x):
+
         """
         Predict the output of the model.
         - This method is to be called after building the model.
@@ -210,6 +213,7 @@ class NN:
         return self._forwardpass(x)
 
     def _forwardpass(self, x):
+
         """
         Forward pass of the model.
         """
@@ -228,11 +232,13 @@ class NN:
 
 
     def train(self, x, y):
+
         """
         Train the model.
         - This method is to be called after building the model.
         - It trains the model using the specified parameter optimizer and loss function.
         """
+
         if not self.is_built:
             raise ValueError('Model not built.')
 
@@ -250,6 +256,7 @@ class NN:
         return self.tail_module.output_size
 
     def build(self):
+
         """
         # Builds the model. 
         - This method is to be called after adding all the modules to the model.
@@ -281,6 +288,7 @@ class NN:
 
 
     def configurate_architecture(self):
+        
         """
         Configurate the architecture of the model.
         - This method is to be called after building the model.

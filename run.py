@@ -17,10 +17,3 @@ givemedata = gd.ClusteredClasses2D()
 data = givemedata.getdata()
 print(data)
 
-training_data, testing_data = utils.split_data_8_2(data)
-
-model.train(training_data)
-model.evaluate(testing_data)
-
-plt.scatter(training_data[0, :], training_data[1, :], c=training_data[2, :])
-plt.show()

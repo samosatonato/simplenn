@@ -5,6 +5,7 @@ import nn.data_processing as data_proc
 
 
 class ParameterOptimizer:
+
     """
     Base class for all optimizers.
     """
@@ -14,6 +15,7 @@ class ParameterOptimizer:
         self.data_processor = default_data_processor or data_processor
 
         self.model = None  # Model to be optimized
+
 
     def run():
         raise NotImplementedError
@@ -25,14 +27,17 @@ class ParameterOptimizer:
         return self.model
     
     def step(self, x, y):
+
         """
         Step function to be called after each iteration.
         - Updates model parameters using the optimizer.
         """
         
+        raise NotImplementedError
     
 
 class GradientDescent(ParameterOptimizer):
+
     """
     Base class for all gradient descent optimizers.
     """
@@ -40,12 +45,14 @@ class GradientDescent(ParameterOptimizer):
     def __init__(self, learning_rate):
         super().__init__(learning_rate)
 
+
     def run(self):
         raise NotImplementedError
     
 
 
 class SGD(GradientDescent):
+
     """
     Stochastic Gradient Descent optimizer.
     """
@@ -53,11 +60,13 @@ class SGD(GradientDescent):
     def __init__(self, learning_rate):
         super().__init__(learning_rate)
 
+
     def run(self):
         raise NotImplementedError
     
 
 class BGD(GradientDescent):
+
     """
     Batch Gradient Descent optimizer.
     """
@@ -65,11 +74,13 @@ class BGD(GradientDescent):
     def __init__(self, learning_rate):
         super().__init__(learning_rate)
 
+
     def run(self):
         raise NotImplementedError
 
 
 class MBGD(GradientDescent):
+
     """
     Mini-Batch Gradient Descent optimizer.
     """
@@ -77,11 +88,13 @@ class MBGD(GradientDescent):
     def __init__(self, learning_rate):
         super().__init__(learning_rate)
 
+
     def run(self):
         raise NotImplementedError
 
 
 class Adam(GradientDescent):
+
     """
     Adam optimizer.
     """
@@ -89,5 +102,7 @@ class Adam(GradientDescent):
     def __init__(self, learning_rate):
         super().__init__(learning_rate)
 
+
     def run(self):
         raise NotImplementedError
+    

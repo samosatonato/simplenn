@@ -4,11 +4,12 @@ import nn.nn as nn
 import nn.layers as layers
 import nn.activations as activations
 import mlp.training as training
-import mlp.evaluation as evaluation
+import nn.evaluation as evaluation
 
 
 
 class MLPModule(nn.Module):
+    
     """
     Base class for all MLP modules.
     """

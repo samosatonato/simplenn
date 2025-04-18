@@ -1,6 +1,6 @@
 import numpy as np
 import mlp.training as training
-import mlp.evaluation as evaluation
+import nn.evaluation as evaluation
 from nn.nn import Module
 
 

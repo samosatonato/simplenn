@@ -12,7 +12,6 @@ class Linear(nn.Activation):
     def _activation_derivative(self, x):
         return np.ones_like(x)
 
-
 class Tanh(nn.Activation):
 
     def _activation(self, net):
@@ -20,7 +19,6 @@ class Tanh(nn.Activation):
 
     def _activation_derivative(self, x):
         return 1 - np.tanh(x) ** 2
-
 
 class Heaviside(nn.Activation):
 
@@ -30,7 +28,6 @@ class Heaviside(nn.Activation):
     def _activation_derivative(self, x):
         return np.zeros_like(x)
 
-
 class ReLU(nn.Activation):
 
     def _activation(self, net):
@@ -38,7 +35,6 @@ class ReLU(nn.Activation):
 
     def _activation_derivative(self, x):
         return np.where(x > 0, 1, 0)
-
 
 class Sigmoid(nn.Activation):
 
@@ -48,7 +44,6 @@ class Sigmoid(nn.Activation):
     def _activation_derivative(self, x):
         return x * (1 - x)
 
-
 class Softmax(nn.Activation):
 
     def _activation(self, net):
@@ -57,3 +52,4 @@ class Softmax(nn.Activation):
 
     def _activation_derivative(self, x):
         return x * (1 - x)
+    
