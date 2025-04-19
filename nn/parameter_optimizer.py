@@ -8,6 +8,9 @@ class ParameterOptimizer:
 
     """
     Base class for all optimizers.
+    
+    
+    - Loads a model to be optimized.
     """
 
     def __init__(self, data_processor=None, model=None):
@@ -15,7 +18,11 @@ class ParameterOptimizer:
         self.data_processor = default_data_processor or data_processor
 
         self.model = None  # Model to be optimized
+        
+        self.features = None
+        self.labels = None
 
+        self.batch_size = None
 
     def run():
         raise NotImplementedError
@@ -31,8 +38,12 @@ class ParameterOptimizer:
         """
         Step function to be called after each iteration.
         - Updates model parameters using the optimizer.
+
+        # Step
+        Step is defined as one full update of all parameters.
         """
         
+
         raise NotImplementedError
     
 

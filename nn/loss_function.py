@@ -6,8 +6,13 @@ class LossFunction:
 
     """
     Base class for all loss functions.
-    - x: predicted output (g)
-    - y: true/target output (y)
+
+    - This class computes loss using specific loss function.
+    - Also implements unified forward and backward method.
+
+    **Notation**:
+    - g: predicted output
+    - y: true/target output
     """
 
     def __init__(self, input_size=None, output_size=1):
@@ -79,7 +84,7 @@ class MeanSquaredErrorLoss(LossFunction):
 
 class CrossEntropyLoss(LossFunction):
 
-    def _losss(self, predictions, labels):
+    def _loss(self, predictions, labels):
         return -1 * np.sum(labels * np.log(predictions))
 
     def _loss_derivative(self, predictions, labels):

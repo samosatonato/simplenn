@@ -1,16 +1,17 @@
 """
 # Core module for neural network construction.
 
-This module contains the base classes for the construction of neural network.
+- This module contains the base classes for the construction of neural networks.
+- The goal is to strike a balance between programmatic and theoretic modularity.
 
-## Notation:
+**Notation**:
 
 - x - input tensor
 - w - weight tensor
 - b - bias tensor
 - net - linear transformation of the input tensor (WX + B)
 - a - activation tensor (activation(net))
-- g - output prediction tensor (the last activation in the MLP)
+- g - output prediction tensor (the last activation in the neural network)
 - y - true/target output tensor
 - c - loss scalar (vector in case of batches) (loss(G, Y))
 - d - number of classes
@@ -33,23 +34,25 @@ class Module:
     Base class for all modules.
     - Contains the next and prev pointers for the linked list of modules.
     - Contains the input and output sizes for the module.
-        - input_size: size of the input tensor
-        - output_size: size of the output tensor
+        - input_dim: size of the input tensor
+        - output_dim: size of the output tensor
         - in case of activation function, they are equal to the output size of the previous layer.
-    - Contains the forward and backward methods for the module.
+    - Contains (interface) the forward and backward methods for the module.
     """
 
-    def __init__(self, input_size=None, output_size=None):
+    def __init__(self, input_dim=None, output_dim=None):
         self.next = None
         self.prev = None
 
-        self.input_size = input_size
-        self.output_size = output_size
+        self.input_dim = input_dim
+        self.output_dim = output_dim
 
     def __call__(self, x):
+
         """
         Call the forward method of the module.
         """
+
         return self.forward(x)
 
 
@@ -64,11 +67,13 @@ class Module:
 class Layer(Module):
 
     """
+    Implements base module class.
+
     Base class for all layers.
     """
 
-    def __init__(self, input_size, output_size, weights_distribution='Normal', has_bias=True):
-        super().__init__(input_size, output_size)
+    def __init__(self, input_dim, output_dim, weights_distribution='Normal', has_bias=True):
+        super().__init__(input_dim, output_dim)
 
         self.weights_distribution = weights_distribution
         self.has_bias = has_bias
@@ -82,35 +87,43 @@ class Layer(Module):
     def initialize(self):
 
         """
-        Initialize the weights and biases for the layer.
-        - This method is to be called after the layer is added to the model.
-            - It is called during model building, in the build method of the model.
-        - It initializes the weights and biases for the layer using the specified distribution.
+        Initializes the layer.
+
+        TODO: other initializations than weights and biases
         """
 
         if self.is_initialized:
             raise ValueError('Layer already initialized.')
         if self.w is None and self.b is None:
-            self._initialize_weights(self.input_size, self.output_size)
+            self._initialize_weights(self.input_dim, self.output_dim)
             self.is_initialized = True
         else:
             # TODO: maybe raise an error here?
             raise ValueError('WeirdError: Weights and biases already initialized.')
 
-    def _initialize_weights(self, input_size, output_size):
+    def _initialize_weights(self, input_dim, output_dim):
+
+        """
+        Initializes the weights and biases for the layer.
+
+        - It initializes the weights and biases for the layer using the specified distribution.
+
+        """
+
         try:
             if self.weights_distribution == 'Normal':
-                self.w, self.b = utils.initialize_normal_weights(input_size, output_size)
+                self.w, self.b = utils.initialize_normal_weights(input_dim, output_dim)
             elif self.weights_distribution == 'Uniform':
-                self.w, self.b = utils.initialize_uniform_weights(input_size, output_size)
+                self.w, self.b = utils.initialize_uniform_weights(input_dim, output_dim)
             elif self.weights_distribution == 'Zero':
-                self.w, self.b = utils.initialize_zero_weights(input_size, output_size)
+                self.w, self.b = utils.initialize_zero_weights(input_dim, output_dim)
             else:
                 raise ValueError('Invalid weights distribution.')
         except ValueError:
-            print('Warning: Invalid weights distribution, using normal distribution.')
+            print('Warning: Invalid weights distribution, using n
+            ormal distribution.')
             self.weights_distribution = 'Normal'
-            self.w, self.b = utils.initialize_normal_weights(input_size, output_size)
+            self.w, self.b = utils.initialize_normal_weights(input_dim, output_dim)
 
 
     def forward(self, x):
@@ -118,6 +131,12 @@ class Layer(Module):
 
     def _net(self, x):
         return x @ self.w + self.b
+    
+
+    def backward(self):
+        pass
+
+    def 
     
 
     # TODO: through pointers
@@ -133,11 +152,13 @@ class Layer(Module):
 class Activation(Module):
 
     """
+    Implements base module class.
+
     Base class for all activation functions.
     """
 
-    def __init__(self, input_size=None, output_size=None):
-        super().__init__(input_size, output_size)
+    def __init__(self, input_dim=None, output_dim=None):
+        super().__init__(input_dim, output_dim)
 
 
     def forward(self, x):
@@ -159,6 +180,13 @@ class NN:
 
     """
     Base class for neural network skeleton.
+    - Accepts building blocks of neural networks.
+        - Modules
+        - Loss function
+        - Parameter optimizer
+        - TODO: hyperparameter optimizer
+    - Stores modules in order in a list.
+    - TODO: is python linked list + custom linked list necessary ???
     """
 
     def __init__(self):
@@ -171,6 +199,10 @@ class NN:
 
         self.is_built = False  # Flag to check if the model is built
 
+        self.update_algorithm = 'backprop'
+
+        self.gradients = []
+
     def __call__(self, *args, **kwds):
         """
         Call the predict method of the model.
@@ -182,6 +214,16 @@ class NN:
 
 
     def add(self, building_block):
+
+        """
+        - Modules.
+        - Loss functions.
+        - Parameter optimizer.
+        TODO: 
+        - Hyperparameter optimizer.
+        - Evaluation engine.
+        """
+
         if isinstance(building_block, Module):
             self.modules.append(building_block)
             
@@ -215,7 +257,9 @@ class NN:
     def _forwardpass(self, x):
 
         """
-        Forward pass of the model.
+        A full forward pass through the model.
+        - Takes an input x
+        - Produces an output g
         """
 
         if not self.is_built:
@@ -231,6 +275,20 @@ class NN:
         return x
 
 
+    def _backpropagate(self, lossgrad):
+        if isinstance(lossgrad, np.ndarray):
+            if len(np.shape(lossgrad)) != 1:
+                raise ValueError('Expecting scalar (stochastic) or vector (batch) loss gradient.')
+
+        x = lossgrad
+        module = self.tail_module
+        while module is not None:
+            x = module.backward(x)
+            self.gradients.append(x)
+            module = module.next
+        return x
+
+
     def train(self, x, y):
 
         """
@@ -241,6 +299,8 @@ class NN:
 
         if not self.is_built:
             raise ValueError('Model not built.')
+        
+        raise NotImplementedError('Train method not implemented.')
 
     def evaluate(self, x):
         pass
@@ -248,12 +308,12 @@ class NN:
     def get_input_dim(self):
         if self.head_module is None:
             raise ValueError('No modules in the model.')
-        return self.head_module.input_size
+        return self.head_module.input_dim
 
     def get_output_dim(self):
         if self.tail_module is None:
             raise ValueError('No modules in the model.')
-        return self.tail_module.output_size
+        return self.tail_module.output_dim
 
     def build(self):
 
@@ -296,3 +356,15 @@ class NN:
         """
         
         raise NotImplementedError('Configurate architecture method not implemented.')
+
+    
+    def conf_param(self):
+
+        """
+        API for parameter optimizer.
+        """
+
+
+    def get_param(self):
+
+
