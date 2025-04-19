@@ -15,5 +15,7 @@ class Dense(nn.Layer):
 
     def activation(self, net):
         return net
-    
+
+
+# TODO: more layers, sparse, dropout?
     
