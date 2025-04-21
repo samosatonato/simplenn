@@ -1,8 +1,12 @@
-import nn.nn as nn
+from . import modules
 
 
 
-class Dense(nn.Layer):
+class Dense(modules.Layer):
+
+    """
+    Dense layer with a linear activation function.
+    """
 
     def __init__(self, input_size, output_size):
         super().__init__(input_size, output_size)
@@ -13,8 +17,12 @@ class Dense(nn.Layer):
     def backward(self, x):
         return super().backward(x)
 
+
     def activation(self, net):
-        return net
+        if isinstance(self.next, modules.Activation):
+            return self.next.activation(net)
+        else:
+            return net
 
 
 # TODO: more layers, sparse, dropout?

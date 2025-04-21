@@ -1,10 +1,10 @@
 import numpy as np
 
-import nn.nn as nn
+from . import modules
 
 
 
-class Linear(nn.Activation):
+class Linear(modules.Activation):
 
     def _activation(self, net):
         return net
@@ -12,7 +12,7 @@ class Linear(nn.Activation):
     def _activation_derivative(self, x):
         return np.ones_like(x)
 
-class Tanh(nn.Activation):
+class Tanh(modules.Activation):
 
     def _activation(self, net):
         return np.tanh(net)
@@ -20,7 +20,7 @@ class Tanh(nn.Activation):
     def _activation_derivative(self, x):
         return 1 - np.tanh(x) ** 2
 
-class Heaviside(nn.Activation):
+class Heaviside(modules.Activation):
 
     def _activation(self, net):
         return np.heaviside(net, 0)
@@ -28,7 +28,7 @@ class Heaviside(nn.Activation):
     def _activation_derivative(self, x):
         return np.zeros_like(x)
 
-class ReLU(nn.Activation):
+class ReLU(modules.Activation):
 
     def _activation(self, net):
         return np.maximum(0, net) 
@@ -36,7 +36,7 @@ class ReLU(nn.Activation):
     def _activation_derivative(self, x):
         return np.where(x > 0, 1, 0)
 
-class Sigmoid(nn.Activation):
+class Sigmoid(modules.Activation):
 
     def _activation(self, net):
         return 1 / (1 + np.exp(-net)) 
@@ -44,7 +44,7 @@ class Sigmoid(nn.Activation):
     def _activation_derivative(self, x):
         return x * (1 - x)
 
-class Softmax(nn.Activation):
+class Softmax(modules.Activation):
 
     def _activation(self, net):
         exps = np.exp(net - np.max(net, axis=0, keepdims=True))

@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "v2",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"python.REPL.enableREPLSmartSend": false
+	}
+}

@@ -24,6 +24,10 @@ class DataProcessor:
         raise NotImplementedError('Data processor not implemented.')
 
 
+    def batchify(self, x, y, batch_size=1):
+
+        pass
+
     def _shuffle_data(self):
         indices = np.arange(len(self.features))
         np.random.shuffle(indices)
@@ -32,7 +36,7 @@ class DataProcessor:
 
 
 
-class DataPreprocessor(nn.DataLoader):
+class DataPreprocessor():
     
     def __init__(self):
         super().__init__()

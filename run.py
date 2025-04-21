@@ -1,19 +1,45 @@
-import mlp.mlp_model as mlp
-import gendata.gendata as gd
-import nn.utils as utils
-import numpy as np
-import matplotlib.pyplot as plt
+import miniflow as mf
 
 
-INPUNT_DIM = 2
+"""
+This is a simple example of how to use the MiniFlow library to create a fully self contained neural network.
+"""
+
+""" Create an empty workbench """
+workbench = mf.Workbench()
+# Creates empty module container
 
 
-# model = mlp.MLP()
+""" Add tools to the workbench """
+workbench.add(mf.layers.Dense(2, 2))
+workbench.add(mf.activations.ReLU())
+workbench.add(mf.layers.Dense((2, 2), 'softmax'))
+# Adds modules - layers and activations to the container
 
-# model.add(mlp.Heaviside(INPUNT_DIM, 2))
 
-givemedata = gd.ClusteredClasses2D()
+""" Build the machine """
+machine = workbench.build()
+# Builds the neural network model using the provided modules
 
-data = givemedata.getdata()
-print(data)
 
+""" Preprocess the input data """
+refinery = mf.Refinery()
+x, y = None
+# Preprocess the data
+
+
+""" Train the model """
+lossfunction = mf.lossfunctions.MSE()
+optimizer = mf.optimizers.SGD(learning_rate=0.01)
+hypertuner = mf.hypertuner.HyperTuner(optimizer, lossfunction)
+
+machine.learn((x, y), lossfunction, optimizer, hypertuner)
+
+
+""" Evaluate the model """
+evaluator = mf.evaluator.Accuracy()
+machine.evaluate()
+
+
+""" Inference """
+g = machine.predict(x)
