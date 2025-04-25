@@ -1,47 +1,56 @@
-import nn.nn as nn
-
 import numpy as np
-
+import math
 
 
 class DataProcessor:
 
-    """
-    Base class for all data processors.
-    """
-
     def __init__(self, preprocessor=None, loader=None):
-        default_preprocessor = nn.StandardScaler()
-        default_loader = nn.DataLoader()
+        default_preprocessor = StandardScaler()
+        default_loader = DataLoader()
 
         self.preprocessor = default_preprocessor or preprocessor
         self.loader = default_loader or loader
 
     def __call__(self, data):
-        """
-        Call the data processor.
-        """
         raise NotImplementedError('Data processor not implemented.')
 
 
     def batchify(self, x, y, batch_size=1):
+        batches = []
+        
+        for i in range(math.ceil(x.shape[0] / batch_size) - 1):
+            batch = (x[i*batch_size : i*batch_size+batch_size], y[i*batch_size : i*batch_size+batch_size])
+            batches.append(batch)
 
-        pass
+        batches.append((x[(math.ceil(x.shape[0] / batch_size) - 1)*batch_size :], y[(math.ceil(x.shape[0] / batch_size) - 1)*batch_size :]))
 
-    def _shuffle_data(self):
-        indices = np.arange(len(self.features))
-        np.random.shuffle(indices)
-        self.features = self.features[indices]
-        self.labels = self.labels[indices]
+        return batches
+
+    def shuffle(self, data1=None, data2=None):
+        if isinstance(data2, np.ndarray):
+            data = np.hstack((data1, data2))
+            np.random.shuffle(data)
+            return data[:,:data1.shape[1]], data[:,data1.shape[1]:]
+        else:
+            return np.random.shuffle(data1)
+
+    def encode(self, encoder, y):
+        return encoder.encode(y)
+
+    def load_csv(self, file):
+        data = self.loader.load_csv(file)
+        y = data[:, 0]
+        x = data[:, 1:]
+        return x, y
 
 
 
-class DataPreprocessor():
+class DataPreprocessor:
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, encoder=None, scaler=None):
+
         self.encoder = None
-        self.scaler = None
+        self.scaler = scaler or StandardScaler()
 
 
     def load_encoder(self, encoder):
@@ -84,6 +93,10 @@ class DataLoader:
             print('Data already loaded.')
             return self.data
     """            
+
+    def load_csv(self, file):
+        return np.loadtxt(file, dtype=np.float32, delimiter=',')
+
 
     def _check_data(self) -> bool:
         if self.features_labels is not None:
@@ -178,7 +191,6 @@ class DataLoader:
         return self.features_labels
     
 
-
 class StandardScaler:
 
     """
@@ -188,6 +200,10 @@ class StandardScaler:
     def __init__(self):
         self.mean = None
         self.std = None
+
+    def __call__(self, data):
+        self.fit(data)
+        return self.transform(data)
 
 
     def fit(self, data):
@@ -233,9 +249,9 @@ class Encoder:
         raise NotImplementedError('Decoder not implemented.')
 
 
-# TODO: Add ecncode-decode pair-specific object logic.
+# TODO: Add ecncode-decode pa ir-specific object logic.
 # TODO: Add string support.
-class OneHotEncoder1D:
+class OneHotEncoder1D(Encoder):
 
     """
     One-hot encoder for 1D labels.
@@ -259,18 +275,19 @@ class OneHotEncoder1D:
         if not isinstance(labels, np.ndarray):
             raise ValueError('Labels must be a numpy array.')
         
-        if len(labels.shape) != 1:
-            raise ValueError('Labels must be a 1D array.')
+        # if len(labels.shape) != 1:
+        #     raise ValueError('Labels must be a 1D array.')
         
         if self.categorization == 'auto':
-            self.categories = np.unique(labels)
+            # Returns the sorted unique elements of an array.
+            categories = np.unique(labels)
         
-        label_to_index = {label: idx for idx, label in enumerate(self.categories)}
+        label_to_index = {round(label): idx for idx, label in np.ndenumerate(categories)}
 
-        one_hot_labels = np.zeros((len(labels), len(self.categories)), dtype=int)
+        one_hot_labels = np.zeros((len(labels), len(categories)), dtype=int)
         
         for i, label in enumerate(labels):
-            col = label_to_index[label]
+            col = label_to_index[int(label)]
             one_hot_labels[i, col] = 1
         
         return one_hot_labels

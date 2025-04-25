@@ -1,6 +1,29 @@
 import numpy as np
 
 
+class Initializer:
+
+    DEFAULT_RANDOM_SEED = 42
+
+    def __init__(self, seed=DEFAULT_RANDOM_SEED):
+        self.rng = np.random.default_rng(seed)
+
+    def new_weights(self, shape):
+        raise NotImplementedError
+    
+    def new_biases(self, shape):
+        raise NotImplementedError
+
+
+class RandomNormal(Initializer):
+
+    def new_weights(self, shape):
+        return self.rng.normal(size=shape)
+
+    def new_biases(self, shape):
+         return np.expand_dims(self.rng.normal(size=shape), axis=1)
+
+
 def split_data_8_2(data):
     samples = np.shape(data)[0]
     tr_data = data[:, :int(samples*0.8)]

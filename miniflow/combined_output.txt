@@ -1,56 +1,97 @@
 import numpy as np
 
-from . import modules
+
+class Activation:
+
+    _registry = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        name = getattr(cls, "name", cls.__name__.lower())
+        Activation._registry[name] = cls
+
+    @classmethod
+    def from_identifier(cls, identifier, **kwargs):
+        if isinstance(identifier, cls):
+            return identifier
+        elif isinstance(identifier, str):
+            if identifier in cls._registry:
+                return cls._registry[identifier](**kwargs)
+            else:
+                raise ValueError(f"Unknown identifier: {identifier}")
+        else:
+            raise TypeError("Expected string identifier or instance of Activation")
+
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        return self._activation(x)
+    
+    def d(self, x):
+        return self._activation_d(x)
+
+    def _activation(self, x):
+        raise NotImplementedError
+    
+    def _activation_d(self, x):
+        raise NotImplementedError
 
 
 
-class Linear(modules.Activation):
+class Linear(Activation):
+    name = 'linear'
 
-    def _activation(self, net):
-        return net
+    def _activation(self, x):
+        return x
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return np.ones_like(x)
 
-class Tanh(modules.Activation):
+class Tanh(Activation):
+    name = 'tanh'
 
-    def _activation(self, net):
-        return np.tanh(net)
+    def _activation(self, x):
+        return np.tanh(x)
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return 1 - np.tanh(x) ** 2
 
-class Heaviside(modules.Activation):
+class Heaviside(Activation):
+    name = 'heaviside'
 
-    def _activation(self, net):
-        return np.heaviside(net, 0)
+    def _activation(self, x):
+        return np.heaviside(x, 0)
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return np.zeros_like(x)
 
-class ReLU(modules.Activation):
+class ReLU(Activation):
+    name = 'relu'
 
-    def _activation(self, net):
-        return np.maximum(0, net) 
+    def _activation(self, x):
+        return np.maximum(0, x) 
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return np.where(x > 0, 1, 0)
 
-class Sigmoid(modules.Activation):
+class Sigmoid(Activation):
+    name = 'sigmoid'
 
-    def _activation(self, net):
-        return 1 / (1 + np.exp(-net)) 
+    def _activation(self, x):
+        return 1 / (1 + np.exp(-x)) 
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return x * (1 - x)
 
-class Softmax(modules.Activation):
+class Softmax(Activation):
+    name = 'softmax'
 
-    def _activation(self, net):
-        exps = np.exp(net - np.max(net, axis=0, keepdims=True))
+    def _activation(self, x):
+        exps = np.exp(x - np.max(x, axis=0, keepdims=True))
         return exps / np.sum(exps, axis=0, keepdims=True)
 
-    def _activation_derivative(self, x):
+    def _activation_d(self, x):
         return x * (1 - x)
     
 
@@ -73,189 +114,50 @@ class LearningRateScheduler(Callback):
 class ModelCheckpoint(Callback):
 
     pass
-import warnings
-from . import modules
-from . import layers
-from . import activations
-from . import machine
-from . import nnmodel as nn
-from . import optimizers
-from . import lossfunctions
-
-
-class MiniFlowWorkbench:
-
-    """
-    # MiniFlow Workbench
-    
-    The Workbench class is the main class and entry point of Miniflow.
-
-    - Accepts 'tools' as input. Tools are used to build the model.
-    
-    - It exposes a simple interface to the user to create and train a model.
-
-    - It abstracts the model architecture, the training loop and the evaluation.
-    
-    - It expects the user to provide tools:
-        - A neural network architecture (a list of layers).
-        - An optimizer (e.g. SGD, Adam).
-        - A loss function (e.g. MSE, CrossEntropy).
-        - An evaluator.
-        - A hypertuner.
-        - A training dataset (x, y).
-        - A testing dataset (x, y).
-
-    ## Methods
-    - `add(tool)`: Add a tool to the workbench.
-    - `build()`: Build the model using the provided tools.
-    - `switch(tool)`: Switch a tool in the workbench after building the model.
-    - `run()`: Run the model using the provided tools.
-
-    
-    # MiniFlow Model
-
-    The model 
-    """
-
-    def __init__(self):
-
-        # TODO: deprecate this
-        self.tools = []
-
-        self.modules=[]
-
-        self.model = None
-        self.optimizer = None
-        self.hypertuner = None
-        self.lossfunction = None
-        self.evaluator = None
-
-        self.training_dataset = None
-        self.testing_dataset = None
-
-        self.is_built = False
-
-    def add(self, tool):
-
-        """
-        Add a tool to the workbench.
-        """
-
-        if isinstance(tool, modules.Module):
-            self.modules.append(tool)
-
-        elif isinstance(tool, nn.NNModel):
-            if self.model is not None:
-                warnings.warn('Neural network already provided. Switching to new one.')
-            self.model = tool
-
-        elif isinstance(tool, lossfunctions.LossFunction):
-            if self.lossfunction is not None:
-                warnings.warn('Loss function already provided. Switching to new one.')
-            self.lossfunction = tool
-    
-        elif isinstance(tool, optimizers.Optimizer):
-            if self.optimizer is not None:
-                warnings.warn('Optimizer already provided. Switching to new one.')
-            self.optimizer = tool
-
-        elif isinstance(tool, nn.Hypertuner):
-            if self.hypertuner is not None:
-                warnings.warn('Hypertuner already provided. Switching to new one.')
-            self.hypertuner = tool
-
-        elif isinstance(tool, nn.Evaluator):
-            if self.evaluator is not None:
-                warnings.warn('Evaluator already provided. Switching to new one.')
-            self.evaluator = tool
-
-
-    def switch(self, tool):
-
-        """
-        Switch a tool in the workbench.
-        """
-
-        # TODO
-
-    def build(self) -> machine.Machine:
-
-        """
-        Build and lock the model using the provided tools.
-        """
-
-        if self.is_built:
-            raise ValueError('Model already built.')
-
-        # Check if all necessary tools are provided
-        if self.modules is None and self.model is None:
-            raise ValueError('Neural network not provided.')
-
-        
-        if self.model is None:
-            # Create a new neural network if not provided
-            self.model = nn.model()
-            self.model.build(self.modules)
-
-        else:
-            if self.model.is_built:
-                warnings.warn('Neural network already built.')
-            else:
-                self.model.build()
-
-        
-        self.is_built = True
-
-        return machine.Machine(
-            model=self.model,
-            lossfunction=self.loss,
-            optimizer=self.optimizer,
-            evaluator=self.evaluator,
-            hypertuner=self.hypertuner,
-        )
-
-
-
-class MiniFlowRefinery:
-
-    pass
-
-
-import nn.nn as nn
-
 import numpy as np
-
+import math
 
 
 class DataProcessor:
 
-    """
-    Base class for all data processors.
-    """
-
     def __init__(self, preprocessor=None, loader=None):
-        default_preprocessor = nn.StandardScaler()
-        default_loader = nn.DataLoader()
+        default_preprocessor = StandardScaler()
+        default_loader = DataLoader()
 
         self.preprocessor = default_preprocessor or preprocessor
         self.loader = default_loader or loader
 
     def __call__(self, data):
-        """
-        Call the data processor.
-        """
         raise NotImplementedError('Data processor not implemented.')
 
 
     def batchify(self, x, y, batch_size=1):
+        batches = []
+        
+        for i in range(math.ceil(x.shape[0] / batch_size) - 1):
+            batch = (x[i*batch_size : i*batch_size+batch_size], y[i*batch_size : i*batch_size+batch_size])
+            batches.append(batch)
 
-        pass
+        batches.append((x[(math.ceil(x.shape[0] / batch_size) - 1)*batch_size :], y[(math.ceil(x.shape[0] / batch_size) - 1)*batch_size :]))
 
-    def _shuffle_data(self):
-        indices = np.arange(len(self.features))
-        np.random.shuffle(indices)
-        self.features = self.features[indices]
-        self.labels = self.labels[indices]
+        return batches
+
+    def shuffle(self, data1=None, data2=None):
+        if isinstance(data2, np.ndarray):
+            data = np.hstack((data1, data2))
+            np.random.shuffle(data)
+            return data[:,:data1.shape[1]], data[:,data1.shape[1]:]
+        else:
+            return np.random.shuffle(data1)
+
+    def encode(self, encoder, y):
+        return encoder.encode(y)
+
+    def load_csv(self, file):
+        data = self.loader.load_csv(file)
+        y = data[:, 0]
+        x = data[:, 1:]
+        return x, y
 
 
 
@@ -307,6 +209,10 @@ class DataLoader:
             print('Data already loaded.')
             return self.data
     """            
+
+    def load_csv(self, file):
+        return np.loadtxt(file, dtype=np.float32, delimiter=',')
+
 
     def _check_data(self) -> bool:
         if self.features_labels is not None:
@@ -401,7 +307,6 @@ class DataLoader:
         return self.features_labels
     
 
-
 class StandardScaler:
 
     """
@@ -456,9 +361,9 @@ class Encoder:
         raise NotImplementedError('Decoder not implemented.')
 
 
-# TODO: Add ecncode-decode pair-specific object logic.
+# TODO: Add ecncode-decode pa ir-specific object logic.
 # TODO: Add string support.
-class OneHotEncoder1D:
+class OneHotEncoder1D(Encoder):
 
     """
     One-hot encoder for 1D labels.
@@ -482,18 +387,19 @@ class OneHotEncoder1D:
         if not isinstance(labels, np.ndarray):
             raise ValueError('Labels must be a numpy array.')
         
-        if len(labels.shape) != 1:
-            raise ValueError('Labels must be a 1D array.')
+        # if len(labels.shape) != 1:
+        #     raise ValueError('Labels must be a 1D array.')
         
         if self.categorization == 'auto':
-            self.categories = np.unique(labels)
+            # Returns the sorted unique elements of an array.
+            categories = np.unique(labels)
         
-        label_to_index = {label: idx for idx, label in enumerate(self.categories)}
+        label_to_index = {round(label): idx for idx, label in np.ndenumerate(categories)}
 
-        one_hot_labels = np.zeros((len(labels), len(self.categories)), dtype=int)
+        one_hot_labels = np.zeros((len(labels), len(categories)), dtype=int)
         
         for i, label in enumerate(labels):
-            col = label_to_index[label]
+            col = label_to_index[int(label)]
             one_hot_labels[i, col] = 1
         
         return one_hot_labels
@@ -529,37 +435,151 @@ def evaluate(model, data):
 
 
 
-from . import modules
+from . import utils
+from . import activations as ac
+import numpy as np
 
 
+class Layer:
 
-class Dense(modules.Layer):
+    def __init__(self):
+        
+        self.initializer = None
+        self.w = None
+        self.b = None
 
-    """
-    Dense layer with a linear activation function.
-    """
+    def __call__(self, x, ad=None):
+        return self._call(x=x, ad=ad)
 
-    def __init__(self, input_size, output_size):
-        super().__init__(input_size, output_size)
+    def _call(self, x, ad=None):
+        raise NotImplementedError
 
-    def forward(self, x):
-        return self.net(x)
+    def build(self, initializer: utils.Initializer = None, wshape=None, bshape=None):
+        default_initializer = utils.RandomNormal()
+        self.initializer = initializer or default_initializer
 
-    def backward(self, x):
-        return super().backward(x)
-
-
-    def activation(self, net):
-        if isinstance(self.next, modules.Activation):
-            return self.next.activation(net)
-        else:
-            return net
-
-
-# TODO: more layers, sparse, dropout?
+        self.add_weights(shape=wshape)
+        self.add_biases(shape=bshape)
     
+    def add_weights(self, shape=None):
+        if self.w is None:
+            self.w = self.initializer.new_weights(shape=shape)
+        else:
+            raise ValueError('Weights already initialized.')
+
+    def add_biases(self, shape=None):
+        if self.b is None:
+            self.b = self.initializer.new_biases(shape=shape)
+        else:
+            raise ValueError('Biases already initialized.')
+
+    def get_weights(self):
+        return self.w
+
+    def set_weights(self, nw):
+        self.w = nw
+
+    def sub_weights(self, dw):
+        self.w -= dw
+
+    def get_biases(self):
+        return self.b
+
+    def set_biases(self, nb):
+        self.b = nb
+
+    def sub_biases(self, db):
+        self.b -= db
+
+    def forward(self):
+        raise NotImplementedError
+
+
+class Input:
+
+    def __init__(self, input_dim):
+        self.input_dim = input_dim
+
+class SimpleDense(Layer):
+
+    def __init__(self, output_dim, activation):
+        super().__init__()
+
+        self.output_dim = output_dim
+        self.activation = None
+        
+        if isinstance(activation, ac.Activation):
+            self.activation = activation
+        elif isinstance(activation, str):
+            self.activation = ac.Activation.from_identifier(activation)
+        else:
+            raise ValueError
+
+        self.cache_net = None
+        self.cache_a = None
+        self.cache_x = None
+
+        self.is_first = False
+
+    def _call(self, x, ad=None):
+        return self.forward(x=x, ad=ad)
+
+    def forward(self, x, ad=None):
+        
+        # Stores the gradient of previous (this input) activation
+        self.cache_prev_ad = ad
+
+        # Input: x shape=(N, in_dim)
+        # Output: a shape=(N, out_dim)
+
+        # shape=(N, in_dim)
+        self.cache_x = None
+        # shape=(N, out_dim)
+        self.cache_net = None
+
+
+        if self.activation is None:
+            # shape=(N, out_dim)
+            self.cache_net = (self.w @ x.T).T
+            return self.cache_net, 1
+        else:
+            # TODO: handle stochastic (one datapoint) input dimensions
+            # w: shape=(out_dim, in_dim)
+            # xT: shape=(in_dim, N)
+            # net' = wxT: shape=(out_dim, N)
+            # net = (net')T: shape=(N, out_dim)
+            if ad is not None:
+                # shape=(N, in_dim)
+                self.cache_x = x
+                # shape=(N, out_dim)
+                self.cache_net = (self.w @ x.T).T + self.b.T
+                # shape=(N, out_dim)
+                self.cache_a = self.activation(self.cache_net)
+                return self.cache_a, self.activation.d(self.cache_net)
+            else:
+                return self.activation((self.w @ x.T).T + self.b.T)
+
+    def backward(self, d):
+        return self.gradient(d)
+
+    def gradient(self, delta_net):
+        # dc_da: shape=(N, out_dim)
+        
+        # shape=(out_dim, in_dim)
+        dc_dw = (delta_net.T @ self.cache_x) / delta_net.shape[0]
+
+        # shape=(1, out_dim)
+        dc_db = np.sum(delta_net, axis=0, keepdims=True).T / delta_net.shape[0]
+
+        # shape=(N, in_dim)
+        dc_dx = (delta_net @ self.w) * self.cache_prev_ad
+
+        return (dc_dw, dc_db), dc_dx
+
+
 
 import numpy as np
+from . import activations
 
 
 
@@ -578,16 +598,15 @@ class LossFunction:
 
     eps = 1e-9
 
-    def __init__(self, g, y):
+    def __init__(self):
+        self.model = None
 
-        if y.shape[0] != g.shape[0]:
-            raise ValueError('x and y must have the same number of samples.')
-        
-        self.g = g
-        self.y = y
+        self.g = None
+        self.y = None
 
         self.lossval = None  # Loss value
         self.lossgrad = None # Loss gradient
+        self.delta_net = None
 
 
     def __call__(self, g, y):
@@ -595,11 +614,20 @@ class LossFunction:
         """
         Call the loss function.
         """
+        self.loss_d(g, y)
 
-        return self.get_loss(g, y)
+        activation = self.model.layers[-1].activation
+        if activation is not None:
+            if not isinstance(activation, activations.Activation):
+                raise ValueError
+            self._delta_net(g, y, activation)
 
+        return self.loss(g, y)
 
-    def get_loss(self, g, y):
+    def add_model(self, model):
+        self.model = model
+
+    def loss(self, g, y):
 
         """
         Forward pass of the loss function.
@@ -617,7 +645,7 @@ class LossFunction:
 
         pass
 
-    def get_loss_gradient(self, g, y):
+    def loss_d(self, g, y):
 
         """
         Gradient of the loss function.
@@ -634,6 +662,9 @@ class LossFunction:
         """
 
         pass
+    
+    def _delta_net(self, y, g, activation):
+        pass
 
 
 
@@ -648,10 +679,17 @@ class MeanSquaredErrorLoss(LossFunction):
 class CategoricalCrossEntropyLoss(LossFunction):
 
     def _loss(self, g, y):
-        return -1 * np.sum(y * np.log(g+self.eps))
+        return -1 * np.sum(y * np.log(g + self.eps), axis=1)
 
     def _loss_gradient(self, g, y):
-        return -1 * (y / (g+self.eps))
+        return -1 * (y / (g + self.eps))
+    
+    def _delta_net(self, g, y, activation):
+        if isinstance(activation, activations.Softmax):
+            self.delta_net = g - y 
+        else:
+            self.delta_net = self.lossgrad * activation.d(g)
+
     
 class BinaryCrossEntropyLoss(LossFunction):
 
@@ -663,514 +701,146 @@ class BinaryCrossEntropyLoss(LossFunction):
 
 class SparseCategoricalCrossEntropyLoss(LossFunction):
 
-    raise NotImplementedError('SparseCategoricalCrossEntropyLoss not implemented yet!')
+    pass
 
-
-"""
-Machine module
-"""
-
-from . import dataprocessor as dp
-from . import optimizers as opt
-
-class Machine:
-
-    """
-    A class handling the neural network model, training and validation.
-    """
-
-    def __init__(self,
-            model=None,
-            lossfunction=None,
-            optimizer=None,
-            evaluator=None,
-            hypertuner=None,):
-        
-
-        self.model = model
-        self.lossfunction = lossfunction
-        self.optimizer = optimizer
-        self.evaluator = evaluator
-        self.hypertuner = hypertuner
-
-
-
-    def learn(self, x, y):
-        self.train(x, y)
-
-    def train(self, x, y, batch_size=1, epochs=1):
-        
-        # TODO: add loss tracking (hooks)
-        if self.hypertuner is None:
-            
-            # Load parameter interface to allow the optimizer to adjust model weights and biases
-            self.optimizer(self.model.parameters_interface())
-            for epoch in range(epochs):
-
-                batches = self.dataprocessor.batchify(x, y, batch_size=batch_size)
-                for x_batch, y_batch in batches:
-                    g_batch = self.model.predict(x_batch)
-                    loss = self.lossfunction(g_batch, y_batch)
-                    self.model.gradient(loss)
-                    self.optimizer.step()
-
-
-
-    def evaluate(self, x, y, evaluator):
-        self.test(x, y, evaluator)
-
-    def test(self, x, y, evaluator):
-        pass
-
-
-    def predict(self, x):
-        return self.model.predict(x)
-
-from . import utils
-
-class Module:
-
-    """
-    Base class for all modules.
-    - Contains the next and prev pointers for the linked list of modules.
-    - Contains the input and output sizes for the module.
-        - input_dim: size of the input tensor
-        - output_dim: size of the output tensor
-        - in case of activation function, they are equal to the output size of the previous layer.
-    - Contains (interface) the forward and backward methods for the module.
-    """
-
-    def __init__(self, input_dim=None, output_dim=None):
-        self.next = None
-        self.prev = None
-
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-
-    def __call__(self, x):
-
-        """
-        Call the forward method of the module.
-        """
-
-        return self.forward(x)
-
-
-    def forward(self, x):
-        raise NotImplementedError('Forward method not implemented.')
-
-    def backward(self, x):
-        raise NotImplementedError('Backward method not implemented.')
-
-    def build(self):
-        pass
-
-
-class Layer(Module):
-
-    """
-    Implements base module class.
-
-    Base class for all layers.
-    """
-
-    def __init__(self, input_dim, output_dim, activation=None, initial_weights_distribution='Normal', has_bias=True):
-        super().__init__(input_dim, output_dim)
-
-        self.initial_weights_distribution = initial_weights_distribution
-        self.has_bias = has_bias
-
-        self.w = None  # Weights
-        self.b = None  # Biases
-
-        self.is_initialized = False  # Flag to check if the layer is initialized
-
-    def __call__(self, x):
-
-        """
-        Call the forward method of the layer.
-        """
-
-        return self.forward(x)
-
-
-    def build(self):
-
-        """
-        Initializes the layer.
-
-        TODO: other initializations than weights and biases ?
-        """
-
-        if self.is_initialized:
-            raise ValueError('Layer already initialized.')
-        
-        if self.w is None and self.b is None:
-            self._initialize_weights(self.input_dim, self.output_dim)
-            self.is_initialized = True
-        else:
-            # TODO: maybe raise an error here?
-            raise ValueError('WeirdError: Weights and biases already initialized.')
-        
-
-    def _initialize_weights(self, input_dim, output_dim):
-
-        """
-        Initializes the weights and biases for the layer.
-
-        - It initializes the weights and biases for the layer using the specified distribution.
-
-        """
-
-        try:
-            if self.initial_weights_distribution == 'Normal':
-                self.w, self.b = utils.initialize_normal_weights(input_dim, output_dim)
-            elif self.initial_weights_distribution == 'Uniform':
-                self.w, self.b = utils.initialize_uniform_weights(input_dim, output_dim)
-            elif self.initial_weights_distribution == 'Zero':
-                self.w, self.b = utils.initialize_zero_weights(input_dim, output_dim)
-            else:
-                raise ValueError('Invalid weights distribution.')
-            
-        except ValueError:
-            print('Warning: Invalid weights distribution, using normal distribution.')
-            self.initial_weights_distribution = 'Normal'
-            self.w, self.b = utils.initialize_normal_weights(input_dim, output_dim)
-
-
-    def forward(self, x):
-        self.cached_x = x
-        net = self.net(x)
-        return net
-
-    def _net(self, x):
-        return x @ self.w + self.b
-    
-
-    def backward(self):
-        pass
-    
-
-    """
-    # TODO: through pointers
-    def activation(self, net):
-        if isinstance(self.next, Activation):
-            return self.next.activation(net)
-        else:
-            print(f'No activation function found for {self}, returning net...')
-            return net
-    """
-
-
-class Activation(Module):
-
-    """
-    Implements base module class.
-
-    Base class for all activation functions.
-    """
-
-    def __init__(self, input_dim=None, output_dim=None):
-        super().__init__(input_dim, output_dim)
-
-
-    def forward(self, x):
-        self.cached_x = x
-        a = self._activation(x)
-        self.cached_a = a
-        return a
-
-    def _activation(self, net):
-        pass
-    
-
-    def backward(self, x):
-        return self._activation_derivative(x)
-
-    def _activation_derivative(self, x):
-        pass
-"""
-# Core module for neural network construction.
-
-- This module contains the base classes for the construction of neural networks.
-- The goal is to strike a balance between programmatic and theoretic modularity.
-
-**Notation**:
-
-- x - input tensor
-- w - weight tensor
-- b - bias tensor
-- net - linear transformation of the input tensor (WX + B)
-- a - activation tensor (activation(net))
-- g - output prediction tensor (the last activation in the neural network)
-- y - true/target output tensor
-- c - loss scalar (vector in case of batches) (loss(G, Y))
-- d - number of classes
-- n - number of samples
-- input_dim - dimension of input features
-- output_dim - dimension of labels
-"""
 
 import numpy as np
 
-from . import modules
 from . import layers
 from . import activations
 from . import hypertuner
 from . import lossfunctions as lf
-from . import optimizers
 
 
-class ParametersInterface:
+class Model:
 
-    def __init__(self, model):
-
-        pass
-
-
-class NNModel:
-
-    """
-    Base class for neural network skeleton.
-    - Accepts modules as input (layers, activations).
-    - Stores modules in order in a list.
-    - TODO: is python linked list + custom linked list necessary ???
-    """
-
-    def __init__(self, parameters_obj=None):
-
-        if parameters_obj is None:
-            self.paremeters_interface = ParametersInterface(self)
-
-        self.modules = []  # List of modules in the neural network
-        self.head_module = None
-        self.tail_module = None
-    
-
-        self.is_built = False  # Flag to check if the model is built
-
-        self.update_algorithm = 'backprop'
-
-        self.gradients = []
-
-    def __call__(self, *args, **kwds):
-        """
-        Call the predict method of the model.
-        """
-        return self.predict(*args, **kwds)
-
-    def __str__(self):
-        return f'Neural Network with {len(self.modules)} modules.'
-
-    def parameters_interface(self) -> ParametersInterface:
-        return self.parameters_interface
-
-
-    def add(self, modules):
-
-        """
-        - Modules.
-        """
-
-        if isinstance(modules, (list, tuple)):
-            for module in modules:
-                self.add(module)
-            return
-        else:
-            module = modules
+    def __init__(self, is_eager=False):
         
+        self.is_eager = is_eager
 
-        if isinstance(module, modules.Module):
-            self.modules.append(module)
+        self.is_training = False
 
+    def train(self):
+        self.is_training = True
+
+    def untrain(self):
+        self.is_training = False
+
+ 
+class Sequential(Model):
+
+    def __init__(self):
+        super().__init__()
+
+        self.layers = []
+        self.input_dim = None
+
+
+    def add(self, layer):
+        if isinstance(layer, layers.Input):
+            self.input_dim = layer.input_dim
         else:
-            raise ValueError('Invalid model building block.')
+            if self.is_eager:
+                layer.build()
+                self.layers.append(layer)
+            else:
+                self.layers.append(layer)
 
 
     def predict(self, x):
-
-        """
-        Predict the output of the model.
-        - This method is to be called after building the model.
-        - It returns the output of the model for the given input x.
-        """
-        
-        if not self.is_built:
-            raise ValueError('Model not built.')
-
         return self._forwardpass(x)
 
     def _forwardpass(self, x):
-
-        """
-        A full forward pass through the model.
-        - Takes an input x
-        - Produces an output g
-        """
-
-        if not self.is_built:
-            raise ValueError('Model not built.')
-
-        if self.head_module is None:
-            raise ValueError('No modules in the model.')
-        
-        module = self.head_module
-        while module is not None:
-            x = module.forward(x)
-            module = module.next
+        if self.is_training:
+            ad = 1
+        if isinstance(x, (list)):
+            x = np.stack(x)
+        for layer in self.layers:
+            if self.is_training:
+                x, ad = layer(x, ad)
+            else:
+                x = layer(x)
         return x
-
-
-    def _backpropagate(self, lossgrad):
-        if isinstance(lossgrad, np.ndarray):
-            if len(np.shape(lossgrad)) != 1:
-                raise ValueError('Expecting scalar (stochastic) or vector (batch) loss gradient.')
-
-        tape = []
-        grad = lossgrad
-
-        module = self.tail_module
-        while module is not None:
-            grad = module.backward(grad)
-            self.gradients.append(grad)
-            module = module.next
-        return grad
-
-
-    def train(self, x, y):
-
-        """
-        Train the model.
-        - This method is to be called after building the model.
-        - It trains the model using the specified parameter optimizer and loss function.
-        """
-
-        if not self.is_built:
-            raise ValueError('Model not built.')
-        
-        raise NotImplementedError('Train method not implemented.')
-
-    def evaluate(self, x):
-        pass
-
-    def get_input_dim(self):
-        if self.head_module is None:
-            raise ValueError('No modules in the model.')
-        return self.head_module.input_dim
-
-    def get_output_dim(self):
-        if self.tail_module is None:
-            raise ValueError('No modules in the model.')
-        return self.tail_module.output_dim
-
-    def build(self, modules=None):
-
-        """
-        # Builds the model. 
-        - This method is to be called after adding all the modules to the model or if supplied with modules here.
-        - Connects the modules in the model and checks if the model is valid.
-        - Fixes loss function and/or parameter optimizer - if not set can be fed to the optimizer object.
-        """
-
-        if self.is_built:
-            raise ValueError('Neural network already built.')
-        if len(self.modules) == 0 and modules is None:
-            raise ValueError('No modules in the neural network.')
-        if len(self.modules) > 0 and modules is not None:
-            raise ValueError('Modules already added to the neural network.')
-        
-        
-        
-        if len(self.modules) == 0 and modules is not None:
-            # Add modules to the neural network
-            self.modules = modules
-
-
-        if len(self.modules) == 1:
-            if not isinstance(self.modules[0], modules.Layer):
-                    raise ValueError('Only one module in the neural network, but it is not a layer.')
-            self.head_module = self.modules[0]
-            self.tail_module = self.modules[0]
-        else:
-            self.head_module = self.modules[0]
-            self.tail_module = self.modules[-1]
-            for i in range(len(self.modules) - 1):
-                self.modules[i].build()
-                self.modules[i].next = self.modules[i + 1]
-                self.modules[i + 1].prev = self.modules[i]
-
-            print('Builder: Neural network built.')
-        self.is_built = True
-
-
-    def configurate_architecture(self):
-        
-        """
-        Configurate the architecture of the model.
-        - This method is to be called after building the model.
-        - This method should be called by hyperparameter optimizer.
-        """
-        
-        raise NotImplementedError('Configurate architecture method not implemented.')
-
     
-    def conf_param(self):
 
-        """
-        API for parameter optimizer.
-        """
+    def gradients(self, loss_grad):
+        return self._backpropagate(loss_grad)
 
+    def _backpropagate(self, delta_net):
+        gradients = []
+        for i, layer in enumerate(reversed(self.layers)):
+            (dw, db), delta_net = layer.backward(delta_net)
+            gradients.append((dw, db))
+        return gradients
 
-    def get_param(self):
+    def sub_weights(self, layers_delta_w):
+        for layer, delta_w in zip(self.layers, reversed(layers_delta_w)):
+            layer.sub_weights(delta_w)
+        return True
 
-        pass
+    def set_weights(self, w):
+        for layer in self.layers:
+            layer.set_weights(w)
+        return True
+    
+    def sub_biases(self, layers_delta_b):
+        for layer, delta_b in zip(self.layers, reversed(layers_delta_b)):
+            layer.sub_biases(delta_b)
+        return True
 
+    def set_biases(self, b):
+        for layer in self.layers:
+            layer.set_biases(b)
+        return True
 
-    def gradient(self, loss: lf.LossFunction = None):
-        tape = []
+    def build(self, optimizer=None, loss=None, metrics=None):
+        loss.add_model(self)
+        if self.is_eager:
+            pass
+        else:
+            wshape = [0, 0]
+            bshape = 0
+            if self.input_dim:
+                wshape[1] = self.input_dim
+                bshape = self.input_dim
+            self.layers[0].is_first = True
+            for layer in self.layers:
+                wshape[0] = layer.output_dim
+                bshape = layer.output_dim
+                layer.build(wshape=wshape, bshape=bshape)
+                wshape[1] = wshape[0]
+
+        self.optimizer = optimizer(self)
 
 
 import numpy as np
 
-from . import nnmodel as nn
+from . import model as nn
 
 
 class Optimizer:
 
-    """
-    Base class for all optimizers.
-    
-    
-    - Loads a model to be optimized.
-    """
-
-    def __init__(self, parameters_interface=None):
-        self.parameters_interface = parameters_interface
+    def __init__(self, model: nn.Model=None):
+        self.model = model
 
 
-    def __call__(self, parameters_interface):
-        self.load_parameters_interface(parameters_interface)
-
-
-    def load_parameters_interface(self, parameters_interface):
-        if isinstance(parameters_interface, nn.ParametersInterface):
-            self.parameters_interface = parameters_interface
+    def __call__(self, model: nn.Model=None):
+        if self.model is not None:
+            raise ValueError('Model already loaded.')
         else:
-            raise ValueError('Parameter interface must be ParametersInterface object.')
+            self.model = model
+
     
-    def step(self, x, y):
-
-        """
-        Step function to be called after each iteration.
-        - Updates model parameters using the optimizer.
-
-        # Step
-        Step is defined as one full update of all parameters.
-        """
-        
+    def step(self):
 
         raise NotImplementedError
     
+
+    def update_weights(self):
+        pass
+
+    def update_biases(self):
+        pass
 
 
 class SGD(Optimizer):
@@ -1179,14 +849,28 @@ class SGD(Optimizer):
     Stochastic Gradient Descent optimizer.
     """
 
-    def __init__(self, learning_rate):
+    def __init__(self, learning_rate=None):
         super().__init__(learning_rate)
 
+        self.gradients = None
+        self.learning_rate = 0.1
         self.momentum = None
 
-    def run(self):
-        raise NotImplementedError
-    
+    def step(self, gradients):
+        self.dw, self.db = map(list, zip(*gradients))
+
+        delta_w = self.update_weights(self.dw)
+        delta_b = self.update_biases(self.db)
+
+        self.model.sub_weights(delta_w)
+        self.model.sub_biases(delta_b)
+
+    def update_weights(self, dw):
+        return [w*self.learning_rate for w in dw]
+        
+
+    def update_biases(self, db):
+        return [b*self.learning_rate for b in db]
 
 
 class RMSProp(SGD):
@@ -1218,6 +902,29 @@ class Adam(SGD):
     
 
 import numpy as np
+
+
+class Initializer:
+
+    DEFAULT_RANDOM_SEED = 42
+
+    def __init__(self, seed=DEFAULT_RANDOM_SEED):
+        self.rng = np.random.default_rng(seed)
+
+    def new_weights(self, shape):
+        raise NotImplementedError
+    
+    def new_biases(self, shape):
+        raise NotImplementedError
+
+
+class RandomNormal(Initializer):
+
+    def new_weights(self, shape):
+        return self.rng.normal(size=shape)
+
+    def new_biases(self, shape):
+         return np.expand_dims(self.rng.normal(size=shape), axis=1)
 
 
 def split_data_8_2(data):
@@ -1276,11 +983,10 @@ def initialize_zero_weights(input_dim, output_dim):
 
 
 
-from .core import MiniFlowWorkbench as Workbench
-from .core import MiniFlowRefinery as Refinery
+# from ..deprecated.core import MiniFlowWorkbench as Workbench
+# from ..deprecated.core import MiniFlowRefinery as Refinery
+from . import model
 from . import layers
-from . import activations
 from . import optimizers
 from . import lossfunctions
-from . import evaluator
-from . import hypertuner
+from . import dataprocessor

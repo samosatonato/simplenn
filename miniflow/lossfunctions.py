@@ -1,4 +1,5 @@
 import numpy as np
+from . import activations
 
 
 
@@ -17,16 +18,15 @@ class LossFunction:
 
     eps = 1e-9
 
-    def __init__(self, g, y):
+    def __init__(self):
+        self.model = None
 
-        if y.shape[0] != g.shape[0]:
-            raise ValueError('x and y must have the same number of samples.')
-        
-        self.g = g
-        self.y = y
+        self.g = None
+        self.y = None
 
         self.lossval = None  # Loss value
         self.lossgrad = None # Loss gradient
+        self.delta_net = None
 
 
     def __call__(self, g, y):
@@ -34,11 +34,20 @@ class LossFunction:
         """
         Call the loss function.
         """
+        self.loss_d(g, y)
 
-        return self.get_loss(g, y)
+        activation = self.model.layers[-1].activation
+        if activation is not None:
+            if not isinstance(activation, activations.Activation):
+                raise ValueError
+            self._delta_net(g, y, activation)
 
+        return self.loss(g, y)
 
-    def get_loss(self, g, y):
+    def add_model(self, model):
+        self.model = model
+
+    def loss(self, g, y):
 
         """
         Forward pass of the loss function.
@@ -56,7 +65,7 @@ class LossFunction:
 
         pass
 
-    def get_loss_gradient(self, g, y):
+    def loss_d(self, g, y):
 
         """
         Gradient of the loss function.
@@ -73,6 +82,9 @@ class LossFunction:
         """
 
         pass
+    
+    def _delta_net(self, y, g, activation):
+        pass
 
 
 
@@ -87,10 +99,17 @@ class MeanSquaredErrorLoss(LossFunction):
 class CategoricalCrossEntropyLoss(LossFunction):
 
     def _loss(self, g, y):
-        return -1 * np.sum(y * np.log(g+self.eps))
+        return -1 * np.sum(y * np.log(g + self.eps), axis=1)
 
     def _loss_gradient(self, g, y):
-        return -1 * (y / (g+self.eps))
+        return -1 * (y / (g + self.eps))
+    
+    def _delta_net(self, g, y, activation):
+        if isinstance(activation, activations.Softmax):
+            self.delta_net = g - y 
+        else:
+            self.delta_net = self.lossgrad * activation.d(g)
+
     
 class BinaryCrossEntropyLoss(LossFunction):
 
@@ -102,5 +121,5 @@ class BinaryCrossEntropyLoss(LossFunction):
 
 class SparseCategoricalCrossEntropyLoss(LossFunction):
 
-    raise NotImplementedError('SparseCategoricalCrossEntropyLoss not implemented yet!')
+    pass
 
