@@ -2,8 +2,8 @@
 
 import numpy as np
 
-class Callback:
 
+class Callback:
     pass
 
 
@@ -19,20 +19,20 @@ class EarlyStopping(Callback):
 
         self.wait = 0
         self.stopped_epoch = 0
-        self.best_score = np.Inf if mode == 'min' else -np.Inf
+        self.best_score = np.inf if mode == 'min' else -np.inf
         self.best_weights = None
         self.model = None
 
-    def on_train_begin(self, model):
+    def load_model(self, model):
         self.model = model
         self.wait = 0
         self.stopped_epoch = 0
-        self.best_score = np.Inf if self.mode == 'min' else -np.Inf
+        self.best_score = np.inf if self.mode == 'min' else -np.inf
         self.best_weights = None
 
     def on_epoch_end(self, epoch, current_score):
         if self.model is None:
-             raise RuntimeError("Callback needs model reference.")
+             raise RuntimeError("No model loaded.")
 
         if self.mode == 'min':
             score_check = self.best_score - self.min_delta
@@ -58,7 +58,7 @@ class EarlyStopping(Callback):
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
 
-                print(f"\nEpoch {epoch+1}: Early stopping triggered.")
+                print(f"\nEpoch {epoch+1}: Early stopping...")
 
                 if self.restore_best_weights and self.best_weights is not None:
 
@@ -73,11 +73,42 @@ class EarlyStopping(Callback):
             
         return False
 
-class LearningRateScheduler(Callback):
 
-    pass
+class LearningRateScheduler(Callback):
+    def __init__(self, schedule_func, optimizer):
+        super().__init__()
+        
+        if schedule_func == 'step':
+            self.schedule_func = self.step_decay_schedule
+        elif schedule_func == 'exp':
+            self.schedule_func = self.exp_decay_schedule
+        else:
+            raise ValueError('Incorrect decay schedule type.')
+        
+        self.optimizer = optimizer
+
+    def on_epoch_begin(self, epoch):
+        current_lr = self.optimizer.learning_rate
+        new_lr = self.schedule_func(epoch, current_lr)
+        if new_lr != current_lr:
+             print(f"\nEpoch {epoch+1}: LearningRateScheduler setting learning rate to {new_lr}.")
+             self.optimizer.learning_rate = new_lr
+
+
+    def step_decay_schedule(self, epoch, initial_lr):
+        initial_lr = 0.01
+        drop_rate = 0.5
+        epochs_drop = 100
+        new_lr = initial_lr * np.pow(drop_rate, np.floor((1+epoch)/epochs_drop))
+        return new_lr
+
+
+    def exp_decay_schedule(self, epoch, initial_lr):
+        initial_lr = 0.01
+        decay_rate = 0.99
+        return initial_lr * (decay_rate ** epoch)
 
 
 class ModelCheckpoint(Callback):
-
     pass
+

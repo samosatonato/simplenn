@@ -79,10 +79,12 @@ class Sigmoid(Activation):
     name = 'sigmoid'
 
     def _activation(self, x):
-        return 1 / (1 + np.exp(-x)) 
+        clipped_x = np.clip(x, -500, 500)
+        return 1 / (1 + np.exp(-clipped_x))
 
     def _activation_d(self, x):
-        return x * (1 - x)
+        s = self._activation(x)
+        return s * (1 - s)
 
 class Softmax(Activation):
     name = 'softmax'

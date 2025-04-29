@@ -44,7 +44,6 @@ class ClusteredClasses():
              raise ValueError(f"Pattern '{self.pattern.value}' currently only supports 2 labels (labels_n=2).")
 
     def _validate_and_set_param(self, attr_name, value, default=None):
-        """Helper to validate and set parameters, preventing overwrites."""
         current_value = getattr(self, attr_name)
         if value is not None and current_value is not None and value != current_value:
 
@@ -139,7 +138,7 @@ class ClusteredClasses():
                 if self.distribution == Distribution.NORMAL:
                     points = self.rng.normal(loc=center, scale=1.0 + self.noise, size=(size, self.dim)) # Noise adds to std dev
                 elif self.distribution == Distribution.UNIFORM:
-                    scale = 1.5 + self.noise # Adjust scale factor as needed
+                    scale = 1.5 + self.noise
                     low = center - scale
                     high = center + scale
                     points = self.rng.uniform(low=low, high=high, size=(size, self.dim))
@@ -244,7 +243,7 @@ class ClusteredClasses():
 
 
         if self.split:
-            # Return features (X) and labels (y) separately
+            # Return features x and labels y separately
             return x, y
         else:
             # y needs to be reshaped to (N, 1) for hstack
@@ -252,7 +251,7 @@ class ClusteredClasses():
 
 
     def reset(self):
-        """Resets configurable parameters to None or defaults."""
+        """Resets configurable parameters"""
         self.labels_n = None
         self.dim = None
         self.sample_size = None
@@ -269,7 +268,7 @@ class ClusteredClasses2D(ClusteredClasses):
     def __init__(self, labels_n=None, sample_size=None,
                  distribution=Distribution.NORMAL, cluster_centers=None,
                  pattern=Pattern.BLOBS, noise=0.1, seed=None, split=True):
-        """Initializes the 2D generator, fixing dim=2."""
+        """Initializes the 2D generator: fixing dim=2."""
         super().__init__(labels_n=labels_n, dim=2, sample_size=sample_size,
                          distribution=distribution, cluster_centers=cluster_centers,
                          pattern=pattern, noise=noise, seed=seed, split=split)

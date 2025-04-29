@@ -88,8 +88,6 @@ class Sequential(Model):
         return True
 
     def build(self, optimizer=None, loss=None, metrics=None):
-        loss.add_model(self)
-        optimizer.add_model(self)
 
         self.layers[-1].is_last = True
 
@@ -108,4 +106,6 @@ class Sequential(Model):
                 layer.build(wshape=wshape, bshape=bshape)
                 wshape[1] = wshape[0]
 
+        loss.add_model(self)
+        optimizer.add_model(self)
 

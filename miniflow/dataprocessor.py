@@ -12,7 +12,42 @@ class DataProcessor:
         self.loader = default_loader or loader
 
     def __call__(self, data):
-        raise NotImplementedError('Data processor not implemented.')
+        raise NotImplementedError('Data processor call not implemented.')
+
+    def load_csv(self, file_path: str, label_col: int = 0, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+        kwargs.setdefault('skiprows', 0)
+        data = self.loader.load_csv(file_path, **kwargs)
+
+        if data.ndim == 1:
+             data = data.reshape(1, -1)
+        if label_col < 0:
+             label_col = data.shape[1] + label_col
+
+        if not (0 <= label_col < data.shape[1]):
+             raise ValueError()
+
+        y = data[:, label_col]
+        x = np.delete(data, label_col, axis=1)
+
+        return x, y
+    
+    def load_dataset(self, file_path: str, label_col: int = 0, skiprows: int = 1, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+        data = self.loader.load_dataset(file_path, skiprows=skiprows, **kwargs)
+
+        if data.ndim == 1:
+             data = data.reshape(1, -1)
+        if label_col < 0:
+             label_col = data.shape[1] + label_col
+
+        if not (0 <= label_col < data.shape[1]):
+             raise ValueError()
+
+        y = data[:, label_col].astype(kwargs.get('dtype', np.float32))
+
+        x = np.delete(data, label_col, axis=1)
+
+        print(f"Dataset loaded: {x.shape[0]} samples, {x.shape[1]} features, labels shape {y.shape}")
+        return x, y
 
 
     def batchify(self, x, y, batch_size=1):
@@ -94,9 +129,21 @@ class DataLoader:
             return self.data
     """            
 
-    def load_csv(self, file):
-        return np.loadtxt(file, dtype=np.float32, delimiter=',')
+    def load_csv(self, file_path: str, **kwargs) -> np.ndarray:
+        import os
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Data file not found: {file_path}")
 
+        try:
+            kwargs.setdefault('delimiter', ',')
+            return np.loadtxt(file_path, **kwargs)
+        except Exception as e:
+            print(f"Error loading data from {file_path}: {e}")
+            raise
+
+    def load_dataset(self, file_path: str, skiprows: int = 1, **kwargs) -> np.ndarray:
+        kwargs.setdefault('skiprows', skiprows) # Set default skiprows if not passed
+        return self.load_csv(file_path, **kwargs)
 
     def _check_data(self) -> bool:
         if self.features_labels is not None:

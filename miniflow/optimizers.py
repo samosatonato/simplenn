@@ -34,23 +34,42 @@ class SGD(Optimizer):
     Stochastic Gradient Descent optimizer.
     """
 
-    def __init__(self, learning_rate=None, momentum=None):
+    def __init__(self, learning_rate=0.01, momentum=0.0):
         super().__init__()
 
         self.learning_rate = learning_rate
+        
         self.momentum = momentum
+        self.vel_w = None
+        self.vel_b = None
 
         self.gradients = None
 
+    def add_model(self, model):
+        super().add_model(model)
+    
+        if self.momentum > 0:
+            self.velocities_w = [np.zeros_like(l.get_weights()) for l in self.model.layers]
+            self.velocities_b = [np.zeros_like(l.get_biases()) for l in self.model.layers]
 
     def step(self, gradients):
-        self.dw, self.db = map(list, zip(*gradients))
+        dw_list, db_list = map(list, zip(*gradients))
 
-        delta_w = self.update_weights(self.dw)
-        delta_b = self.update_biases(self.db)
+        for i in range(len(self.model.layers)):
+            dw = dw_list[-(i+1)]
+            db = db_list[-(i+1)]
 
-        self.model.sub_weights(delta_w)
-        self.model.sub_biases(delta_b)
+            if self.momentum > 0:
+                self.velocities_w[i] = self.momentum * self.velocities_w[i] + self.learning_rate * dw
+                self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.learning_rate * db
+                delta_w = self.velocities_w[i]
+                delta_b = self.velocities_b[i]
+            else:
+                delta_w = self.learning_rate * dw
+                delta_b = self.learning_rate * db
+
+            self.model.layers[i].sub_weights(delta_w)
+            self.model.layers[i].sub_biases(delta_b)
 
 
     def update_weights(self, dw):

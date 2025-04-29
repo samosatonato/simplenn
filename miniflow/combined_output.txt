@@ -92,28 +92,124 @@ class Softmax(Activation):
         return exps / np.sum(exps, axis=0, keepdims=True)
 
     def _activation_d(self, x):
-        return x * (1 - x)
+        raise NotImplementedError('Currently softmax activation supports only output layer.')
     
 
 # TODO
 
-class Callback:
+import numpy as np
 
+
+class Callback:
     pass
 
 
 class EarlyStopping(Callback):
+    def __init__(self, monitor='val_loss', patience=5, min_delta=0, mode='min', baseline=None, restore_best_weights=False):
+        super().__init__()
+        self.monitor = monitor
+        self.patience = patience
+        self.min_delta = min_delta
+        self.mode = mode
+        self.baseline = baseline
+        self.restore_best_weights = restore_best_weights
 
-    pass
+        self.wait = 0
+        self.stopped_epoch = 0
+        self.best_score = np.inf if mode == 'min' else -np.inf
+        self.best_weights = None
+        self.model = None
+
+    def load_model(self, model):
+        self.model = model
+        self.wait = 0
+        self.stopped_epoch = 0
+        self.best_score = np.inf if self.mode == 'min' else -np.inf
+        self.best_weights = None
+
+    def on_epoch_end(self, epoch, current_score):
+        if self.model is None:
+             raise RuntimeError("No model loaded.")
+
+        if self.mode == 'min':
+            score_check = self.best_score - self.min_delta
+            improved = current_score < score_check
+        else:
+            score_check = self.best_score + self.min_delta
+            improved = current_score > score_check
+
+        if self.baseline is not None:
+             if self.mode == 'min' and current_score > self.baseline: return False # Not stopping
+             if self.mode == 'max' and current_score < self.baseline: return False # Not stopping
+
+
+        if improved:
+            self.best_score = current_score
+            self.wait = 0
+            if self.restore_best_weights:
+
+                self.best_weights = [np.copy(l.get_weights()) for l in self.model.layers], \
+                                   [np.copy(l.get_biases()) for l in self.model.layers]
+        else:
+            self.wait += 1
+            if self.wait >= self.patience:
+                self.stopped_epoch = epoch
+
+                print(f"\nEpoch {epoch+1}: Early stopping...")
+
+                if self.restore_best_weights and self.best_weights is not None:
+
+                    print("Restoring model weights from the end of the best epoch.")
+
+                    weights, biases = self.best_weights
+                    for i, layer in enumerate(self.model.layers):
+                        layer.set_weights(weights[i])
+                        layer.set_biases(biases[i])
+
+                return True
+            
+        return False
+
 
 class LearningRateScheduler(Callback):
+    def __init__(self, schedule_func, optimizer):
+        super().__init__()
+        
+        if schedule_func == 'step':
+            self.schedule_func = self.step_decay_schedule
+        elif schedule_func == 'exp':
+            self.schedule_func = self.exp_decay_schedule
+        else:
+            raise ValueError('Incorrect decay schedule type.')
+        
+        self.optimizer = optimizer
 
-    pass
+    def on_epoch_begin(self, epoch):
+        current_lr = self.optimizer.learning_rate
+        new_lr = self.schedule_func(epoch, current_lr)
+        if new_lr != current_lr:
+             print(f"\nEpoch {epoch+1}: LearningRateScheduler setting learning rate to {new_lr}.")
+             self.optimizer.learning_rate = new_lr
+
+
+    def step_decay_schedule(self, epoch, lr):
+        initial_lr = 0.01
+        drop_rate = 0.5
+        epochs_drop = 100
+        new_lr = initial_lr * np.pow(drop_rate, np.floor((1+epoch)/epochs_drop))
+        return new_lr
+
+
+    def exp_decay_schedule(self, epoch, lr):
+        initial_lr = 0.01
+        decay_rate = 0.99
+        return initial_lr * (decay_rate ** epoch)
 
 
 class ModelCheckpoint(Callback):
-
     pass
+
+
 import numpy as np
 import math
 
@@ -128,7 +224,42 @@ class DataProcessor:
         self.loader = default_loader or loader
 
     def __call__(self, data):
-        raise NotImplementedError('Data processor not implemented.')
+        raise NotImplementedError('Data processor call not implemented.')
+
+    def load_csv(self, file_path: str, label_col: int = 0, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+        kwargs.setdefault('skiprows', 0)
+        data = self.loader.load_csv(file_path, **kwargs)
+
+        if data.ndim == 1:
+             data = data.reshape(1, -1)
+        if label_col < 0:
+             label_col = data.shape[1] + label_col
+
+        if not (0 <= label_col < data.shape[1]):
+             raise ValueError()
+
+        y = data[:, label_col]
+        x = np.delete(data, label_col, axis=1)
+
+        return x, y
+    
+    def load_dataset(self, file_path: str, label_col: int = 0, skiprows: int = 1, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+        data = self.loader.load_dataset(file_path, skiprows=skiprows, **kwargs)
+
+        if data.ndim == 1:
+             data = data.reshape(1, -1)
+        if label_col < 0:
+             label_col = data.shape[1] + label_col
+
+        if not (0 <= label_col < data.shape[1]):
+             raise ValueError()
+
+        y = data[:, label_col].astype(kwargs.get('dtype', np.float32))
+
+        x = np.delete(data, label_col, axis=1)
+
+        print(f"Dataset loaded: {x.shape[0]} samples, {x.shape[1]} features, labels shape {y.shape}")
+        return x, y
 
 
     def batchify(self, x, y, batch_size=1):
@@ -161,12 +292,12 @@ class DataProcessor:
 
 
 
-class DataPreprocessor():
+class DataPreprocessor:
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, encoder=None, scaler=None):
+
         self.encoder = None
-        self.scaler = None
+        self.scaler = scaler or StandardScaler()
 
 
     def load_encoder(self, encoder):
@@ -210,9 +341,21 @@ class DataLoader:
             return self.data
     """            
 
-    def load_csv(self, file):
-        return np.loadtxt(file, dtype=np.float32, delimiter=',')
+    def load_csv(self, file_path: str, **kwargs) -> np.ndarray:
+        import os
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Data file not found: {file_path}")
 
+        try:
+            kwargs.setdefault('delimiter', ',')
+            return np.loadtxt(file_path, **kwargs)
+        except Exception as e:
+            print(f"Error loading data from {file_path}: {e}")
+            raise
+
+    def load_dataset(self, file_path: str, skiprows: int = 1, **kwargs) -> np.ndarray:
+        kwargs.setdefault('skiprows', skiprows) # Set default skiprows if not passed
+        return self.load_csv(file_path, **kwargs)
 
     def _check_data(self) -> bool:
         if self.features_labels is not None:
@@ -316,6 +459,10 @@ class StandardScaler:
     def __init__(self):
         self.mean = None
         self.std = None
+
+    def __call__(self, data):
+        self.fit(data)
+        return self.transform(data)
 
 
     def fit(self, data):
@@ -500,14 +647,15 @@ class Input:
     def __init__(self, input_dim):
         self.input_dim = input_dim
 
+
 class SimpleDense(Layer):
 
-    def __init__(self, output_dim, activation):
+    def __init__(self, output_dim, activation, regularizer=None):
         super().__init__()
 
         self.output_dim = output_dim
-        self.activation = None
-        
+        self.regularizer = regularizer
+
         if isinstance(activation, ac.Activation):
             self.activation = activation
         elif isinstance(activation, str):
@@ -519,7 +667,7 @@ class SimpleDense(Layer):
         self.cache_a = None
         self.cache_x = None
 
-        self.is_first = False
+        self.is_last = False
 
     def _call(self, x, ad=None):
         return self.forward(x=x, ad=ad)
@@ -555,7 +703,10 @@ class SimpleDense(Layer):
                 self.cache_net = (self.w @ x.T).T + self.b.T
                 # shape=(N, out_dim)
                 self.cache_a = self.activation(self.cache_net)
-                return self.cache_a, self.activation.d(self.cache_net)
+                if not self.is_last:
+                    return self.cache_a, self.activation.d(self.cache_net)
+                else:
+                    return self.cache_a, 1       
             else:
                 return self.activation((self.w @ x.T).T + self.b.T)
 
@@ -568,6 +719,9 @@ class SimpleDense(Layer):
         # shape=(out_dim, in_dim)
         dc_dw = (delta_net.T @ self.cache_x) / delta_net.shape[0]
 
+        if self.regularizer:
+            dc_dw += self.regularizer.l2_lambda * self.w
+
         # shape=(1, out_dim)
         dc_db = np.sum(delta_net, axis=0, keepdims=True).T / delta_net.shape[0]
 
@@ -575,7 +729,6 @@ class SimpleDense(Layer):
         dc_dx = (delta_net @ self.w) * self.cache_prev_ad
 
         return (dc_dw, dc_db), dc_dx
-
 
 
 import numpy as np
@@ -794,7 +947,9 @@ class Sequential(Model):
         return True
 
     def build(self, optimizer=None, loss=None, metrics=None):
-        loss.add_model(self)
+
+        self.layers[-1].is_last = True
+
         if self.is_eager:
             pass
         else:
@@ -810,7 +965,8 @@ class Sequential(Model):
                 layer.build(wshape=wshape, bshape=bshape)
                 wshape[1] = wshape[0]
 
-        self.optimizer = optimizer(self)
+        loss.add_model(self)
+        optimizer.add_model(self)
 
 
 import numpy as np
@@ -820,16 +976,16 @@ from . import model as nn
 
 class Optimizer:
 
-    def __init__(self, model: nn.Model=None):
+    def __init__(self):
+        
+        self.model = None
+
+
+    def __call__(self):
+        pass
+
+    def add_model(self, model):
         self.model = model
-
-
-    def __call__(self, model: nn.Model=None):
-        if self.model is not None:
-            raise ValueError('Model already loaded.')
-        else:
-            self.model = model
-
     
     def step(self):
 
@@ -849,26 +1005,47 @@ class SGD(Optimizer):
     Stochastic Gradient Descent optimizer.
     """
 
-    def __init__(self, learning_rate=None):
-        super().__init__(learning_rate)
+    def __init__(self, learning_rate=0.01, momentum=0.0):
+        super().__init__()
+
+        self.learning_rate = learning_rate
+        
+        self.momentum = momentum
+        self.vel_w = None
+        self.vel_b = None
 
         self.gradients = None
-        self.learning_rate = 0.1
-        self.momentum = None
+
+    def add_model(self, model):
+        super().add_model(model)
+    
+        if self.momentum > 0:
+            self.velocities_w = [np.zeros_like(l.get_weights()) for l in self.model.layers]
+            self.velocities_b = [np.zeros_like(l.get_biases()) for l in self.model.layers]
 
     def step(self, gradients):
-        self.dw, self.db = map(list, zip(*gradients))
+        dw_list, db_list = map(list, zip(*gradients))
 
-        delta_w = self.update_weights(self.dw)
-        delta_b = self.update_biases(self.db)
+        for i in range(len(self.model.layers)):
+            dw = dw_list[-(i+1)]
+            db = db_list[-(i+1)]
 
-        self.model.sub_weights(delta_w)
-        self.model.sub_biases(delta_b)
+            if self.momentum > 0:
+                self.velocities_w[i] = self.momentum * self.velocities_w[i] + self.learning_rate * dw
+                self.velocities_b[i] = self.momentum * self.velocities_b[i] + self.learning_rate * db
+                delta_w = self.velocities_w[i]
+                delta_b = self.velocities_b[i]
+            else:
+                delta_w = self.learning_rate * dw
+                delta_b = self.learning_rate * db
+
+            self.model.layers[i].sub_weights(delta_w)
+            self.model.layers[i].sub_biases(delta_b)
+
 
     def update_weights(self, dw):
         return [w*self.learning_rate for w in dw]
         
-
     def update_biases(self, db):
         return [b*self.learning_rate for b in db]
 
@@ -901,6 +1078,12 @@ class Adam(SGD):
         raise NotImplementedError
     
 
+# TODO
+
+class L2Regularizer:
+
+    def __init__(self, l2_lambda=1):
+        self.l2_lambda = l2_lambda
 import numpy as np
 
 
@@ -926,6 +1109,29 @@ class RandomNormal(Initializer):
     def new_biases(self, shape):
          return np.expand_dims(self.rng.normal(size=shape), axis=1)
 
+class RandomUniform(Initializer):
+    def new_weights(self, shape):
+        pass
+    def new_biases(self, shape):
+        pass
+
+# https://cs230.stanford.edu/section/4/#xavier-initialization
+class GlorotUniform(Initializer):
+    def new_weights(self, shape):
+        # shape[0] = output_dim, shape[1] = input_dim
+        limit = np.sqrt(6. / (shape[1] + shape[0]))
+        return self.rng.uniform(low=-limit, high=limit, size=shape)
+    def new_biases(self, shape):
+         return np.zeros((shape, 1))
+
+# https://medium.com/the-modern-scientist/exploring-the-he-normal-distribution-in-neural-network-weight-initialization-b802a53074e5
+class HeNormal(Initializer):
+     def new_weights(self, shape):
+         # scale = sqrt(2 / input_dim)
+         stddev = np.sqrt(2. / shape[1])
+         return self.rng.normal(loc=0.0, scale=stddev, size=shape)
+     def new_biases(self, shape):
+         return np.zeros((shape, 1))
 
 def split_data_8_2(data):
     samples = np.shape(data)[0]
@@ -990,3 +1196,5 @@ from . import layers
 from . import optimizers
 from . import lossfunctions
 from . import dataprocessor
+from . import regularizers
+from . import callbacks

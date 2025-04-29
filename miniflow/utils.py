@@ -23,6 +23,29 @@ class RandomNormal(Initializer):
     def new_biases(self, shape):
          return np.expand_dims(self.rng.normal(size=shape), axis=1)
 
+class RandomUniform(Initializer):
+    def new_weights(self, shape):
+        pass
+    def new_biases(self, shape):
+        pass
+
+# https://cs230.stanford.edu/section/4/#xavier-initialization
+class GlorotUniform(Initializer):
+    def new_weights(self, shape):
+        # shape[0] = output_dim, shape[1] = input_dim
+        limit = np.sqrt(6. / (shape[1] + shape[0]))
+        return self.rng.uniform(low=-limit, high=limit, size=shape)
+    def new_biases(self, shape):
+         return np.zeros((shape, 1))
+
+# https://medium.com/the-modern-scientist/exploring-the-he-normal-distribution-in-neural-network-weight-initialization-b802a53074e5
+class HeNormal(Initializer):
+     def new_weights(self, shape):
+         # scale = sqrt(2 / input_dim)
+         stddev = np.sqrt(2. / shape[1])
+         return self.rng.normal(loc=0.0, scale=stddev, size=shape)
+     def new_biases(self, shape):
+         return np.zeros((shape, 1))
 
 def split_data_8_2(data):
     samples = np.shape(data)[0]

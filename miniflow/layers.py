@@ -63,6 +63,7 @@ class Input:
     def __init__(self, input_dim):
         self.input_dim = input_dim
 
+
 class SimpleDense(Layer):
 
     def __init__(self, output_dim, activation, regularizer=None):
@@ -144,5 +145,4 @@ class SimpleDense(Layer):
         dc_dx = (delta_net @ self.w) * self.cache_prev_ad
 
         return (dc_dw, dc_db), dc_dx
-
 
